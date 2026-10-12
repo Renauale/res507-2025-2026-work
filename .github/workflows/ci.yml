@@ -51,4 +51,4 @@ jobs:
 
       - name: Stop container
         if: always()
-        ru: docker rm -f quote-app || true
+        run: docker rm -f quote-app || true
