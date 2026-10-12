@@ -7,6 +7,9 @@ on:
 permissions:
   contents: read
 
+env:
+  COMPOSE_FILE: labs/20-containerized-node-app/docker/compose.ci.yaml
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -33,22 +36,17 @@ jobs:
       - name: Build Docker image
         working-directory: labs/20-containerized-node-app
         run: docker build -t quote-app -f docker/Dockerfile .
-
-      - name: Run container smoke test
+      
+      - name: Start PostgreSQL and app
+        run: docker compose up -d --wait --wait-timeout 60
+      
+      - name: Test quotes
         run: |
-          docker run -d --name quote-app -p 3000:3000 quote-app
-          for attempt in $(seq 1 30); do
-            if curl --fail --silent --show-error \
-              --connect-timeout 1 --max-time 2 \
-              http://localhost:3000/health -o /tmp/quote-app-health.json \
-              && node -e 'const assert = require("node:assert/strict"); const fs = require("node:fs"); assert.equal(JSON.parse(fs.readFileSync("/tmp/quote-app-health.json", "utf8")).ok, true);'; then
-              echo "Health check passed"
-              exit 0
-            fi
-            sleep 1
-          done
-          echo "Health check failed"
-          exit 1
+          for i in $(seq 1 30); do curl -fs localhost:3000/health > /dev/null && break; sleep 1; done
+          NEW="CI quote $GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          curl -fsS localhost:3000/ | grep -F "Talk is cheap. Show me the code."
+          curl -fsS -o /dev/null -X POST localhost:3000/quotes --data-urlencode "text=$NEW"
+          curl -fsS localhost:3000/ | grep -F "$NEW"
 
       - name: Show container diagnostics
         if: failure()

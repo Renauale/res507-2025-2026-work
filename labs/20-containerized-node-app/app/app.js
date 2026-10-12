@@ -35,7 +35,7 @@ export async function buildApp() {
     // Placeholder test quotes
     // const quotes = [{text: "quote 1", author: "author 1"}, {text: "quote 2", author: "author 2"}]; 
     return reply.view("index.hbs", { quotes });
-  };
+  });
 
   // Post new quote endpoint
   app.post("/quotes", async (req, reply) => {
