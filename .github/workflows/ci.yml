@@ -48,13 +48,10 @@ jobs:
           curl -fsS -o /dev/null -X POST localhost:3000/quotes --data-urlencode "text=$NEW"
           curl -fsS localhost:3000/ | grep -F "$NEW"
 
-      - name: Show container diagnostics
+      - name: Show logs on failure
         if: failure()
-        run: |
-          docker ps -a
-          docker inspect quote-app || true
-          docker logs quote-app || true
+        run: docker compose logs db app
 
-      - name: Stop container
+      - name: Clean up
         if: always()
-        run: docker rm -f quote-app || true
+        run: docker compose down -v
