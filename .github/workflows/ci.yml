@@ -29,6 +29,9 @@ jobs:
         run: |
           node --check app.js
           node --check server.js
+      
+      - name: check init sql syntax
+        working-directory: labs/20-containerized-node-app/db/init.sql
 
       - name: Build Docker image
         working-directory: labs/20-containerized-node-app
