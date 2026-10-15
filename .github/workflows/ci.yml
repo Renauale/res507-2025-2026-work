@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  COMPOSE_FILE: labs/20-containerized-node-app/docker/compose.ci.yaml
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+
+      - name: Install dependencies
+        working-directory: labs/20-containerized-node-app/app
+        run: npm ci
+
+      - name: Check JavaScript syntax
+        working-directory: labs/20-containerized-node-app/app
+        run: |
+          node --check app.js
+          node --check server.js
+
+      - name: Build Docker image
+        working-directory: labs/20-containerized-node-app
+        run: docker build -t quote-app -f docker/Dockerfile .
+      
+      - name: Start PostgreSQL and app
+        run: docker compose up -d --wait --wait-timeout 60
+      
+      - name: Test quotes
+        run: |
+          for i in $(seq 1 30); do curl -fs localhost:3000/health > /dev/null && break; sleep 1; done
+          NEW="CI quote $GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          curl -fsS localhost:3000/ | grep -F "Talk is cheap. Show me the code."
+          curl -fsS -o /dev/null -X POST localhost:3000/quotes --data-urlencode "text=$NEW"
+          curl -fsS localhost:3000/ | grep -F "$NEW"
+
+      - name: Show logs on failure
+        if: failure()
+        run: docker compose logs db app
+
+      - name: Clean up
+        if: always()
+        run: docker compose down -v
